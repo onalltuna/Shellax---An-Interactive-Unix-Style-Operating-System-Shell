@@ -318,6 +318,7 @@ int pipeCommand(struct command_t *command, int *p);
 void runCommand(struct command_t *command);
 void ourUniq(char *input);
 void ourUniq2(char *input);
+void wiseman(struct command_t *command,int a,int i);
 int main()
 {
   while (1)
@@ -360,6 +361,11 @@ int process_command(struct command_t *command)
       return SUCCESS;
     }
   }
+  if(strcmp(command->name, "wiseman") == 0)
+    {
+      command->background = true;
+      
+    }
 
   int connection[2];
   char message[4096];
@@ -393,6 +399,12 @@ int process_command(struct command_t *command)
 
     //   return SUCCESS;
     // }
+
+    if(strcmp(command->name, "wiseman") == 0)
+    {
+      wiseman(command,1,5);
+      return SUCCESS;
+    }
 
     if (command->next != NULL)
     {
@@ -694,6 +706,7 @@ void ourUniq(char *input)
 }
 
 void ourUniq2(char *input) {
+  
 
   const char s[2] = "\n";
   char *token;
@@ -732,3 +745,19 @@ void ourUniq2(char *input) {
   }
 
 }
+
+void wiseman(struct command_t *command,int a,int i){
+
+
+  if(i == 0)
+  {
+   exit(0);
+  } else{
+  sleep(5);
+  // system("sleep 5 &");
+  system("fortune | cowsay >>wisecow.txt");
+  process_command(command);
+  // wiseman(a,i -1);
+  }
+}
+
