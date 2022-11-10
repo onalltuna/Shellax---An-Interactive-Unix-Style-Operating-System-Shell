@@ -6,16 +6,19 @@
 #include <sys/wait.h>
 #include <termios.h> // termios, TCSANOW, ECHO, ICANON
 #include <unistd.h>
-#include <dirent.h> 
+#include <dirent.h>
+#include <signal.h>
 const char *sysname = "shellax";
 
-enum return_codes {
+enum return_codes
+{
   SUCCESS = 0,
   EXIT = 1,
   UNKNOWN = 2,
 };
 
-struct command_t {
+struct command_t
+{
   char *name;
   bool background;
   bool auto_complete;
@@ -29,7 +32,8 @@ struct command_t {
  * Prints a command struct
  * @param struct command_t *
  */
-void print_command(struct command_t *command) {
+void print_command(struct command_t *command)
+{
   int i = 0;
   printf("Command: <%s>\n", command->name);
   printf("\tIs Background: %s\n", command->background ? "yes" : "no");
@@ -41,7 +45,8 @@ void print_command(struct command_t *command) {
   printf("\tArguments (%d):\n", command->arg_count);
   for (i = 0; i < command->arg_count; ++i)
     printf("\t\tArg %d: %s\n", i, command->args[i]);
-  if (command->next) {
+  if (command->next)
+  {
     printf("\tPiped to:\n");
     print_command(command->next);
   }
@@ -51,8 +56,10 @@ void print_command(struct command_t *command) {
  * @param  command [description]
  * @return         [description]
  */
-int free_command(struct command_t *command) {
-  if (command->arg_count) {
+int free_command(struct command_t *command)
+{
+  if (command->arg_count)
+  {
     for (int i = 0; i < command->arg_count; ++i)
       free(command->args[i]);
     free(command->args);
@@ -60,7 +67,8 @@ int free_command(struct command_t *command) {
   for (int i = 0; i < 3; ++i)
     if (command->redirects[i])
       free(command->redirects[i]);
-  if (command->next) {
+  if (command->next)
+  {
     free_command(command->next);
     command->next = NULL;
   }
@@ -72,7 +80,8 @@ int free_command(struct command_t *command) {
  * Show the command prompt
  * @return [description]
  */
-int show_prompt() {
+int show_prompt()
+{
   char cwd[1024], hostname[1024];
   gethostname(hostname, sizeof(hostname));
   getcwd(cwd, sizeof(cwd));
@@ -85,7 +94,8 @@ int show_prompt() {
  * @param  command [description]
  * @return         0
  */
-int parse_command(char *buf, struct command_t *command) {
+int parse_command(char *buf, struct command_t *command)
+{
   const char *splitters = " \t"; // split at whitespace
   int index, len;
   len = strlen(buf);
@@ -103,10 +113,13 @@ int parse_command(char *buf, struct command_t *command) {
     command->background = true;
 
   char *pch = strtok(buf, splitters);
-  if (pch == NULL) {
+  if (pch == NULL)
+  {
     command->name = (char *)malloc(1);
     command->name[0] = 0;
-  } else {
+  }
+  else
+  {
     command->name = (char *)malloc(strlen(pch) + 1);
     strcpy(command->name, pch);
   }
@@ -116,7 +129,8 @@ int parse_command(char *buf, struct command_t *command) {
   int redirect_index;
   int arg_index = 0;
   char temp_buf[1024], *arg;
-  while (1) {
+  while (1)
+  {
     // tokenize input on splitters
     pch = strtok(NULL, splitters);
     if (!pch)
@@ -126,7 +140,7 @@ int parse_command(char *buf, struct command_t *command) {
     len = strlen(arg);
 
     if (len == 0)
-      continue; // empty arg, go for next
+      continue;                                          // empty arg, go for next
     while (len > 0 && strchr(splitters, arg[0]) != NULL) // trim left whitespace
     {
       arg++;
@@ -138,7 +152,8 @@ int parse_command(char *buf, struct command_t *command) {
       continue; // empty arg, go for next
 
     // piping to another command
-    if (strcmp(arg, "|") == 0) {
+    if (strcmp(arg, "|") == 0)
+    {
       struct command_t *c = malloc(sizeof(struct command_t));
       int l = strlen(pch);
       pch[l] = splitters[0]; // restore strtok termination
@@ -160,15 +175,19 @@ int parse_command(char *buf, struct command_t *command) {
     redirect_index = -1;
     if (arg[0] == '<')
       redirect_index = 0;
-    if (arg[0] == '>') {
-      if (len > 1 && arg[1] == '>') {
+    if (arg[0] == '>')
+    {
+      if (len > 1 && arg[1] == '>')
+      {
         redirect_index = 2;
         arg++;
         len--;
-      } else
+      }
+      else
         redirect_index = 1;
     }
-    if (redirect_index != -1) {
+    if (redirect_index != -1)
+    {
       command->redirects[redirect_index] = malloc(len);
       strcpy(command->redirects[redirect_index], arg + 1);
       continue;
@@ -188,10 +207,12 @@ int parse_command(char *buf, struct command_t *command) {
     strcpy(command->args[arg_index++], arg);
   }
   command->arg_count = arg_index;
+
   return 0;
 }
 
-void prompt_backspace() {
+void prompt_backspace()
+{
   putchar(8);   // go back 1
   putchar(' '); // write empty over
   putchar(8);   // go back 1 again
@@ -202,7 +223,8 @@ void prompt_backspace() {
  * @param  buf_size [description]
  * @return          [description]
  */
-int prompt(struct command_t *command) {
+int prompt(struct command_t *command)
+{
   int index = 0;
   char c;
   char buf[4096];
@@ -225,7 +247,8 @@ int prompt(struct command_t *command) {
 
   show_prompt();
   buf[0] = 0;
-  while (1) {
+  while (1)
+  {
     c = getchar();
     // printf("Keycode: %u\n", c); // DEBUG: uncomment for debugging
 
@@ -237,20 +260,23 @@ int prompt(struct command_t *command) {
 
     if (c == 127) // handle backspace
     {
-      if (index > 0) {
+      if (index > 0)
+      {
         prompt_backspace();
         index--;
       }
       continue;
     }
 
-    if (c == 27 || c == 91 || c == 66 || c == 67 || c == 68) {
+    if (c == 27 || c == 91 || c == 66 || c == 67 || c == 68)
+    {
       continue;
     }
 
     if (c == 65) // up arrow
     {
-      while (index > 0) {
+      while (index > 0)
+      {
         prompt_backspace();
         index--;
       }
@@ -288,8 +314,14 @@ int prompt(struct command_t *command) {
   return SUCCESS;
 }
 int process_command(struct command_t *command);
-int main() {
-  while (1) {
+int pipeCommand(struct command_t *command, int *p);
+void runCommand(struct command_t *command);
+void ourUniq(char *input);
+void ourUniq2(char *input);
+int main()
+{
+  while (1)
+  {
     struct command_t *command = malloc(sizeof(struct command_t));
     memset(command, 0, sizeof(struct command_t)); // set all bytes to 0
 
@@ -309,7 +341,8 @@ int main() {
   return 0;
 }
 
-int process_command(struct command_t *command) {
+int process_command(struct command_t *command)
+{
   int r;
   if (strcmp(command->name, "") == 0)
     return SUCCESS;
@@ -317,14 +350,26 @@ int process_command(struct command_t *command) {
   if (strcmp(command->name, "exit") == 0)
     return EXIT;
 
-  if (strcmp(command->name, "cd") == 0) {
-    if (command->arg_count > 0) {
+  if (strcmp(command->name, "cd") == 0)
+  {
+    if (command->arg_count > 0)
+    {
       r = chdir(command->args[0]);
       if (r == -1)
         printf("-%s: %s: %s\n", sysname, command->name, strerror(errno));
       return SUCCESS;
     }
   }
+
+  int connection[2];
+  char message[4096];
+  char message2[4096];
+
+  if (pipe(connection) == -1)
+  {
+    printf("Pipe failed\n");
+  }
+
 
   pid_t pid = fork();
   if (pid == 0) // child
@@ -338,6 +383,22 @@ int process_command(struct command_t *command) {
     // as required by exec
 
     // increase args size by 2
+
+    int p[2];
+    pipe(p);
+
+    // if(strcmp(command->next->name,"uniq") == 0) {
+    //   printf("Next is uniq\n");
+    //   // pipeCommand(command,p);
+
+    //   return SUCCESS;
+    // }
+
+    if (command->next != NULL)
+    {
+      pipeCommand(command, p);
+    }
+
     command->args = (char **)realloc(
         command->args, sizeof(char *) * (command->arg_count += 2));
 
@@ -354,7 +415,7 @@ int process_command(struct command_t *command) {
     // do so by replacing the execvp call below
     // execvp(command->name, command->args); // exec+args+path
 
-    char* path = getenv("PATH");
+    char *path = getenv("PATH");
     // printf("Path: %s\n",path);
 
     char pathOfCommand[50];
@@ -369,43 +430,124 @@ int process_command(struct command_t *command) {
     DIR *pDir;
     struct dirent *entry;
 
-
     while (token != NULL)
-		{
-			// printf("%s\n", token);
-			pDir = opendir(token);
+    {
+      pDir = opendir(token);
 
-			if (pDir == NULL)
-			{
-        // token = strtok(NULL, s);
-
+      if (pDir == NULL)
+      {
         // return 1;
-			} else 
+      }
+      else
       {
         while ((entry = readdir(pDir)) != NULL)
         {
-          // printf("name:%s\n",entry->d_name);
-          if (strcmp(entry->d_name,command->name) == 0)
+          if (strcmp(entry->d_name, command->name) == 0)
           {
-            // free(pathOfCommand);
-            strcpy(pathOfCommand,"");
-            strcpy(pathOfCommand,token);
-            strcat(pathOfCommand,"/");
-            strcat(pathOfCommand,command->name);
-            printf("path:%s\n",pathOfCommand);
+            strcpy(pathOfCommand, "");
+            strcpy(pathOfCommand, token);
+            strcat(pathOfCommand, "/");
+            strcat(pathOfCommand, command->name);
+            // close(connection[0]);
+            // close(connection[1]);
+            execv(pathOfCommand, command->args);
+            exit(0);
             break;
+          }
+          if (command->redirects[1] != NULL || command->redirects[2] != NULL) //---------Check if redirects
+          {
+            dup2(connection[1], STDOUT_FILENO);
           }
         }
       }
-        
+
       token = strtok(NULL, s);
-		}
-    // printf("pathofCommand2 %s\n",pathOfCommand);    
-    execv(pathOfCommand,command->args);
-    exit(0);
-  } else {
+    }
+  }
+  else
+  {
     // TODO: implement background processes here
-    wait(0); // wait for child process to finish
+    if (!command->background) //-----------------------------Background
+    {
+      wait(0);
+    }
+    // cat output2 >outputfile
+    // cat output2 >>outputfile
+    if (command->redirects[0] != NULL)
+    { //-------------------------------- Redirects
+      FILE *inputFile;
+      inputFile = fopen(command->redirects[0], "r");
+      fseek(inputFile, 0, SEEK_END);
+      int lenght = ftell(inputFile);
+      fseek(inputFile, 0, SEEK_SET);
+      char *message2 = (char *)malloc(sizeof(char) * (lenght + 1));
+      char inp;
+      message;
+      int i = 0;
+      while (1)
+      {
+        inp = fgetc(inputFile);
+        if (feof(inputFile))
+        {
+          break;
+        }
+        message2[i] = inp;
+        i++;
+      }
+      message2[i] = '\0';
+      if (command->redirects[1] != NULL)
+      {
+        close(connection[1]);
+        read(connection[0], &message, sizeof(message));
+        FILE *ptr;
+        ptr = fopen(command->redirects[1], "w");
+        printf("%s\n", command->redirects[1]);
+        fprintf(ptr, "%s%s", message, message2);
+        fclose(ptr);
+        close(connection[1]);
+      }
+      if (command->redirects[2] != NULL)
+      {
+        close(connection[1]);
+        read(connection[0], &message, sizeof(message));
+        FILE *ptr;
+        ptr = fopen(command->redirects[2], "a");
+        printf("%s\n", command->redirects[2]);
+        fputs(message, ptr);
+        fprintf(ptr, "%s", message2);
+        // fwrite(try,1,  sizeof(try) - 1, ptr);
+        fclose(ptr);
+        close(connection[1]);
+      }
+    }
+    else
+    {
+      if (command->redirects[1] != NULL)
+      {
+        close(connection[1]);
+        read(connection[0], &message, sizeof(message));
+        FILE *ptr;
+        ptr = fopen(command->redirects[1], "w");
+        printf("%s\n", command->redirects[1]);
+        fprintf(ptr, "%s", message);
+        // fwrite(try,1,  sizeof(try) - 1, ptr);
+        fclose(ptr);
+        close(connection[1]);
+      }
+      if (command->redirects[2] != NULL)
+      {
+        close(connection[1]);
+        read(connection[0], &message, sizeof(message));
+        FILE *ptr;
+        ptr = fopen(command->redirects[2], "a");
+        printf("%s\n", command->redirects[2]);
+        fputs(message, ptr);
+        // fwrite(try,1,  sizeof(try) - 1, ptr);
+        fclose(ptr);
+        close(connection[1]);
+      }
+    }
+
     return SUCCESS;
   }
 
@@ -413,4 +555,180 @@ int process_command(struct command_t *command) {
 
   printf("-%s: %s: command not found\n", sysname, command->name);
   return UNKNOWN;
+}
+
+int pipeCommand(struct command_t *command, int *p)
+{
+  // int p[2];
+  // pipe(p);
+  char a[4096];
+  if (strcmp(command->name, "uniq") == 0)
+  {
+    close(p[1]);
+    read(p[0], &a, sizeof(a));
+    if(command->arg_count > 0) 
+    {
+      ourUniq2(a);
+    }
+    else
+    {
+      ourUniq(a);
+    }
+  }
+  if (command->next == NULL)
+  {
+    close(0);
+    dup(p[0]);
+    close(p[1]);
+    runCommand(command);
+  }
+  else
+  {
+    if (fork() == 0)
+    {
+      close(0);
+
+      dup(p[0]);
+      close(p[1]);
+      pipeCommand(command->next, p);
+    }
+    else
+    {
+      close(1);
+      dup(p[1]);
+      close(p[0]);
+      runCommand(command);
+    }
+  }
+  return 0;
+}
+
+void runCommand(struct command_t *command)
+{
+  // increase args size by 2
+  command->args = (char **)realloc(
+      command->args, sizeof(char *) * (command->arg_count += 2));
+
+  // shift everything forward by 1
+  for (int i = command->arg_count - 2; i > 0; --i)
+    command->args[i] = command->args[i - 1];
+
+  command->args[0] = strdup(command->name);
+  command->args[command->arg_count - 1] = NULL;
+
+  char *path = getenv("PATH");
+  char pathOfCommand[50];
+  const char s[2] = ":";
+  char *token;
+  token = strtok(path, s);
+  DIR *pDir;
+  struct dirent *entry;
+
+  while (token != NULL)
+  {
+    pDir = opendir(token);
+
+    if (pDir == NULL)
+    {
+      // return 1;
+    }
+    else
+    {
+      while ((entry = readdir(pDir)) != NULL)
+      {
+        if (strcmp(entry->d_name, command->name) == 0)
+        {
+          strcpy(pathOfCommand, "");
+          strcpy(pathOfCommand, token);
+          strcat(pathOfCommand, "/");
+          strcat(pathOfCommand, command->name);
+          // close(connection[0]);
+          // close(connection[1]);
+          execv(pathOfCommand, command->args);
+          exit(0);
+          break;
+        }
+      }
+    }
+
+    token = strtok(NULL, s);
+  }
+}
+
+void ourUniq(char *input)
+{
+
+  // strcat(input,"\n");
+  const char s[2] = "\n";
+  char *token;
+  token = strtok(input, s);
+
+  char visited[100][100];
+  int i = 0;
+  strcpy(visited[i], token);
+ 
+  int j = 0;
+
+  while (token != NULL)
+  {
+    for (int k = 0; k < i; k++)
+    {
+      if (strcmp(visited[k], token) == 0)
+      {
+        j = 1;
+      }
+    }
+    if (j == 0)
+    {
+      strcpy(visited[i], token);
+      i++;
+    }
+    token = strtok(NULL, s);
+    j = 0;
+  }
+
+  for(int m = 0; m < i; m++)
+  {
+    printf("%s\n", visited[m]);
+  }
+}
+
+void ourUniq2(char *input) {
+
+  const char s[2] = "\n";
+  char *token;
+  token = strtok(input, s);
+
+  char visited[100][100];
+  int visitedCount[100];
+  int i = 0;
+  strcpy(visited[i], token);
+ 
+  int j = 0;
+
+  while (token != NULL)
+  {
+    for (int k = 0; k < i; k++)
+    {
+      if (strcmp(visited[k], token) == 0)
+      {
+        j = 1;
+        visitedCount[k]++;
+      }
+    }
+    if (j == 0)
+    {
+      strcpy(visited[i], token);
+      visitedCount[i] = 1;
+      i++;
+    }
+    token = strtok(NULL, s);
+    j = 0;
+  }
+
+  for(int m = 0; m < i; m++)
+  {
+    printf("%d %s\n",visitedCount[m], visited[m]);
+  }
+
 }
