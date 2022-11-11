@@ -8,6 +8,9 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 const char *sysname = "shellax";
 
 enum return_codes
@@ -318,7 +321,8 @@ int pipeCommand(struct command_t *command, int *p);
 void runCommand(struct command_t *command);
 void ourUniq(char *input);
 void ourUniq2(char *input);
-void wiseman(struct command_t *command,int a,int i);
+int wiseman(struct command_t *command, char *minutes);
+void chatroom(struct command_t *command);
 int main()
 {
   while (1)
@@ -361,11 +365,11 @@ int process_command(struct command_t *command)
       return SUCCESS;
     }
   }
-  if(strcmp(command->name, "wiseman") == 0)
-    {
-      command->background = true;
-      
-    }
+  // if(strcmp(command->name, "wiseman") == 0)
+  //   {
+  //     command->background = true;
+
+  //   }
 
   int connection[2];
   char message[4096];
@@ -375,7 +379,6 @@ int process_command(struct command_t *command)
   {
     printf("Pipe failed\n");
   }
-
 
   pid_t pid = fork();
   if (pid == 0) // child
@@ -399,11 +402,16 @@ int process_command(struct command_t *command)
 
     //   return SUCCESS;
     // }
-
-    if(strcmp(command->name, "wiseman") == 0)
+    if (strcmp(command->name, "chatroom") == 0)
     {
-      wiseman(command,1,5);
-      return SUCCESS;
+      chatroom(command);
+      exit(0);
+    }
+
+    if (strcmp(command->name, "wiseman") == 0)
+    {
+      wiseman(command, command->args[0]);
+      exit(0);
     }
 
     if (command->next != NULL)
@@ -439,20 +447,20 @@ int process_command(struct command_t *command)
     token = strtok(path, s);
     // printf("Token:%s\n", token);
 
-    DIR *pDir;
+    DIR *chatroomPtr;
     struct dirent *entry;
 
     while (token != NULL)
     {
-      pDir = opendir(token);
+      chatroomPtr = opendir(token);
 
-      if (pDir == NULL)
+      if (chatroomPtr == NULL)
       {
         // return 1;
       }
       else
       {
-        while ((entry = readdir(pDir)) != NULL)
+        while ((entry = readdir(chatroomPtr)) != NULL)
         {
           if (strcmp(entry->d_name, command->name) == 0)
           {
@@ -578,7 +586,7 @@ int pipeCommand(struct command_t *command, int *p)
   {
     close(p[1]);
     read(p[0], &a, sizeof(a));
-    if(command->arg_count > 0) 
+    if (command->arg_count > 0)
     {
       ourUniq2(a);
     }
@@ -633,20 +641,20 @@ void runCommand(struct command_t *command)
   const char s[2] = ":";
   char *token;
   token = strtok(path, s);
-  DIR *pDir;
+  DIR *chatroomPtr;
   struct dirent *entry;
 
   while (token != NULL)
   {
-    pDir = opendir(token);
+    chatroomPtr = opendir(token);
 
-    if (pDir == NULL)
+    if (chatroomPtr == NULL)
     {
       // return 1;
     }
     else
     {
-      while ((entry = readdir(pDir)) != NULL)
+      while ((entry = readdir(chatroomPtr)) != NULL)
       {
         if (strcmp(entry->d_name, command->name) == 0)
         {
@@ -678,7 +686,7 @@ void ourUniq(char *input)
   char visited[100][100];
   int i = 0;
   strcpy(visited[i], token);
- 
+
   int j = 0;
 
   while (token != NULL)
@@ -699,14 +707,14 @@ void ourUniq(char *input)
     j = 0;
   }
 
-  for(int m = 0; m < i; m++)
+  for (int m = 0; m < i; m++)
   {
     printf("%s\n", visited[m]);
   }
 }
 
-void ourUniq2(char *input) {
-  
+void ourUniq2(char *input)
+{
 
   const char s[2] = "\n";
   char *token;
@@ -716,7 +724,7 @@ void ourUniq2(char *input) {
   int visitedCount[100];
   int i = 0;
   strcpy(visited[i], token);
- 
+
   int j = 0;
 
   while (token != NULL)
@@ -739,25 +747,154 @@ void ourUniq2(char *input) {
     j = 0;
   }
 
-  for(int m = 0; m < i; m++)
+  for (int m = 0; m < i; m++)
   {
-    printf("%d %s\n",visitedCount[m], visited[m]);
-  }
-
-}
-
-void wiseman(struct command_t *command,int a,int i){
-
-
-  if(i == 0)
-  {
-   exit(0);
-  } else{
-  sleep(5);
-  // system("sleep 5 &");
-  system("fortune | cowsay >>wisecow.txt");
-  process_command(command);
-  // wiseman(a,i -1);
+    printf("%d %s\n", visitedCount[m], visited[m]);
   }
 }
 
+int wiseman(struct command_t *command, char *minutes){
+  char str[150];
+  strcpy(str, "echo '*/");
+  strcat(str, minutes);
+  strcat(str, " * * * * /tmp/com.sh' | crontab -");
+  printf("str: %s\n", str);
+  system("echo 'echo 'Wiseman is working' >>/tmp/wisecow.txt' >/tmp/com.sh");
+  // system("echo 'echo fortune | cowsay >>/tmp/wisecow.txt' >/tmp/com.sh");
+  system("chmod u+x /tmp/com.sh");
+  system(str);
+  return SUCCESS;
+}
+
+void chatroom(struct command_t *command)
+{
+
+  printf("Chatroom name: %s\n", command->args[0]);
+  printf("User: %s\n", command->args[1]);
+
+  int chatroomExist = 0;
+  int userExist = 0;
+  char chatroomName[50];
+  char userName[50];
+
+  int numberOfUser = 0;
+
+  DIR *chatroomPtr;
+  DIR *userPtr;
+  struct dirent *entry;
+
+  char users[50][50];
+
+  strcpy(chatroomName, "/tmp/");
+  strcat(chatroomName, command->args[0]);
+
+  strcpy(userName, chatroomName);
+  strcat(userName, "/");
+  strcat(userName, command->args[1]);
+
+  chatroomPtr = opendir("/tmp");
+
+  if (chatroomPtr == NULL)
+  {
+    // return 1;
+  }
+  else
+  {
+    while ((entry = readdir(chatroomPtr)) != NULL)
+    {
+      if (strcmp(entry->d_name, command->args[0]) == 0)
+      {
+        chatroomExist = 1;
+      }
+    }
+  }
+  if (chatroomExist == 0)
+  {
+    mkdir(chatroomName, 0777);
+  }
+  else
+  {
+    userPtr = opendir(chatroomName);
+
+    if (userPtr == NULL)
+    {
+      // return 1;
+    }
+    else
+    {
+      while ((entry = readdir(userPtr)) != NULL)
+      {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+        {
+          // printf("skipped\n");
+        }
+        else
+        {
+          char username[50];
+          strcpy(username, chatroomName);
+          strcat(username, "/");
+          strcat(username, entry->d_name);
+          strcpy(users[numberOfUser], username);
+          numberOfUser++;
+          // printf("entryname: %s numberofuser: %d \n",entry->d_name, numberOfUser);
+          if (strcmp(entry->d_name, command->args[1]) == 0)
+          {
+            userExist = 1;
+          }
+        }
+      }
+    }
+  }
+
+  if (userExist == 0)
+  {
+    // char username[50];
+    // strcpy(username, chatroomName);
+    // strcat(username, "/");
+    // strcat(username, command->args[1]);
+    strcpy(users[numberOfUser], userName);
+    numberOfUser++;
+    if (mkfifo(userName, 0777) == -1)
+    {
+      printf("Failed to pipe\n");
+    }
+  }
+
+  pid_t pids[numberOfUser];
+  char messageSent[450];
+  char messageReceived[450];
+  // strcpy(messageSent, "hello");
+
+  for (int i = 0; i < numberOfUser; i++)
+  {
+    // printf("users[%d] : %s\n", i, users[i]);
+    pid_t pid = fork();
+    if (pid == 0) // child
+    {
+      strcpy(messageSent, "[");
+      strcat(messageSent, command->args[0]);
+      strcat(messageSent, "] ");
+      strcat(messageSent, users[i]);
+
+      int fd = open(users[i], O_WRONLY);
+      write(fd, &messageSent, sizeof(messageSent));
+      close(fd);
+
+      kill(getpid(), SIGTERM);
+    }
+    else
+    {
+    }
+  }
+
+  printf("Welcome to %s!\n", command->args[0]);
+  while (1)
+  {
+    int fd = open(userName, O_RDONLY);
+    read(fd, &messageReceived, sizeof(messageReceived));
+    close(fd);
+    printf("%s\n", messageReceived);
+    printf("%s write your message here:\n", command->args[1]);
+    /* code */
+  }
+}
