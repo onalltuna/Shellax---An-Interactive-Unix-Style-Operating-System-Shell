@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <time.h>
 const char *sysname = "shellax";
 
 enum return_codes
@@ -323,6 +324,16 @@ void ourUniq(char *input);
 void ourUniq2(char *input);
 int wiseman(struct command_t *command, char *minutes);
 void chatroom(struct command_t *command);
+void sendMessage(char *inputMessage, char users[50][50], int numUsers);
+void guessGame(int guess, int goal, int lower, int higher,int *shot);
+void wordle(char word[], int *chance);
+// helper functions for wordle game:
+void red();
+void purple();
+void green();
+void blue();
+void reset();
+
 int main()
 {
   while (1)
@@ -402,6 +413,67 @@ int process_command(struct command_t *command)
 
     //   return SUCCESS;
     // }
+
+    if (strcmp(command->name, "wordle") == 0)
+    {
+      // second argument might be number of chance
+      int chance = 6;
+
+      srand(time(NULL));
+      int randomNum = (rand() % 212) + 1;
+      // printf("randım number %d\n", randomNum);
+
+      // explains how to play the game
+      purple();
+      printf("Guess a 5 letter word. Do not use capital letters. Good Luck!\n");
+      reset();
+
+      // char* word = findRandomWord(randomNum);
+      // printf("word is: \n");
+
+      FILE *textfile;
+      char line[7];
+
+      textfile = fopen("words.txt", "r");
+      if (textfile == NULL)
+      {
+        printf("Sorry");
+      }
+
+      int count = 0;
+      while (count != randomNum)
+      {
+        fgets(line, 7, textfile);
+        count++;
+      }
+      fclose(textfile);
+      // printf("wordle is %s\n", line);
+
+      // call the game
+      wordle(line, &chance);
+      exit(0);
+    }
+
+    if (strcmp(command->name, "guessGame") == 0)
+    {
+      if(command->arg_count != 1)
+      {
+        printf("Please enter valid arguments\n");
+        exit(0);
+      }
+      else 
+      {
+        int size = atoi(command->args[0]);
+        srand(getpid()); // Initialization, should only be called once.
+        int r = rand() % size;
+        int firstGuess;
+        int shott = 1;
+        printf("Welcome to guess game please enter your first guess: ");
+        scanf("%d", &firstGuess);
+        guessGame(firstGuess, r, 0, size, &shott);
+        exit(0);
+      }
+    }
     if (strcmp(command->name, "chatroom") == 0)
     {
       chatroom(command);
@@ -641,20 +713,20 @@ void runCommand(struct command_t *command)
   const char s[2] = ":";
   char *token;
   token = strtok(path, s);
-  DIR *chatroomPtr;
+  DIR *pDir;
   struct dirent *entry;
 
   while (token != NULL)
   {
-    chatroomPtr = opendir(token);
+    pDir = opendir(token);
 
-    if (chatroomPtr == NULL)
+    if (pDir == NULL)
     {
       // return 1;
     }
     else
     {
-      while ((entry = readdir(chatroomPtr)) != NULL)
+      while ((entry = readdir(pDir)) != NULL)
       {
         if (strcmp(entry->d_name, command->name) == 0)
         {
@@ -753,14 +825,17 @@ void ourUniq2(char *input)
   }
 }
 
-int wiseman(struct command_t *command, char *minutes){
+int wiseman(struct command_t *command, char *minutes)
+{
   char str[150];
   strcpy(str, "echo '*/");
   strcat(str, minutes);
   strcat(str, " * * * * /tmp/com.sh' | crontab -");
   printf("str: %s\n", str);
   system("echo 'echo 'Wiseman is working' >>/tmp/wisecow.txt' >/tmp/com.sh");
-  // system("echo 'echo fortune | cowsay >>/tmp/wisecow.txt' >/tmp/com.sh");
+  // system("echo 'echo | fortune | cowsay >>/tmp/wisecow.txt' >/tmp/com.sh");
+  // system("echo 'ls | cowsay >>/tmp/wisecow.txt' >/tmp/com.sh");
+
   system("chmod u+x /tmp/com.sh");
   system(str);
   return SUCCESS;
@@ -768,6 +843,149 @@ int wiseman(struct command_t *command, char *minutes){
 
 void chatroom(struct command_t *command)
 {
+
+  // printf("Chatroom name: %s\n", command->args[0]);
+  // printf("User: %s\n", command->args[1]);
+
+  // int chatroomExist = 0;
+  // int userExist = 0;
+  // char chatroomName[50];
+  // char userName[50];
+
+  // int numberOfUser = 0;
+
+  // DIR *chatroomPtr;
+  // DIR *userPtr;
+  // struct dirent *entry;
+
+  // char users[50][50];
+
+  // strcpy(chatroomName, "/tmp/");
+  // strcat(chatroomName, command->args[0]);
+
+  // strcpy(userName, chatroomName);
+  // strcat(userName, "/");
+  // strcat(userName, command->args[1]);
+
+  // chatroomPtr = opendir("/tmp");
+
+  // if (chatroomPtr == NULL)
+  // {
+  //   // return 1;
+  // }
+  // else
+  // {
+  //   while ((entry = readdir(chatroomPtr)) != NULL)
+  //   {
+  //     if (strcmp(entry->d_name, command->args[0]) == 0)
+  //     {
+  //       chatroomExist = 1;
+  //     }
+  //   }
+  // }
+  // if (chatroomExist == 0)
+  // {
+  //   mkdir(chatroomName, 0777);
+  // }
+  // else
+  // {
+  //   userPtr = opendir(chatroomName);
+
+  //   if (userPtr == NULL)
+  //   {
+  //     // return 1;
+  //   }
+  //   else
+  //   {
+  //     while ((entry = readdir(userPtr)) != NULL)
+  //     {
+  //       if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+  //       {
+  //         // printf("skipped\n");
+  //       }
+  //       else
+  //       {
+  //         char username[50];
+  //         strcpy(username, chatroomName);
+  //         strcat(username, "/");
+  //         strcat(username, entry->d_name);
+  //         strcpy(users[numberOfUser], username);
+  //         numberOfUser++;
+  //         // printf("entryname: %s numberofuser: %d \n",entry->d_name, numberOfUser);
+  //         if (strcmp(entry->d_name, command->args[1]) == 0)
+  //         {
+  //           userExist = 1;
+  //         }
+  //       }
+  //     }
+  //   }
+  // }
+
+  // if (userExist == 0)
+  // {
+  //   // char username[50];
+  //   // strcpy(username, chatroomName);
+  //   // strcat(username, "/");
+  //   // strcat(username, command->args[1]);
+  //   strcpy(users[numberOfUser], userName);
+  //   numberOfUser++;
+  //   if (mkfifo(userName, 0777) == -1)
+  //   {
+  //     printf("Failed to pipe\n");
+  //   }
+  // }
+
+  // pid_t pids[numberOfUser];
+  // char messageSent[450];
+  // char messageReceived[450];
+  // strcpy(messageSent, "Hello! ");
+  // strcat(messageSent, command->args[1]);
+  // strcat(messageSent, " jonied the chatroom: ");
+  // strcat(messageSent, command->args[0]);
+
+  // for (int i = 0; i < numberOfUser; i++)
+  // {
+  //   pid_t pid2 = fork();
+  //   if (pid2 == 0) // child
+  //   {
+  //     // char *token, *last;
+  //     // last = token = strtok(users[i], "/");
+  //     // for (; (token = strtok(NULL, "/")) != NULL; last = token);
+
+  //     // while (1)
+  //     // {
+
+  //     strcpy(messageSent, "[");
+  //     strcat(messageSent, command->args[0]);
+  //     strcat(messageSent, "] ");
+  //     strcat(messageSent, users[i]);
+
+  //     // if (strcmp(last, command->args[1]) != 0)
+  //     // {
+  //       int fd = open(users[i], O_WRONLY);
+  //       write(fd, &messageSent, sizeof(messageSent));
+  //       close(fd);
+  //     // }
+
+  //     // }
+
+  //     kill(getpid(), SIGTERM);
+  //   }
+  //   else
+  //   {
+  //   }
+  // }
+
+  // printf("Welcome to %s!\n", command->args[0]);
+  // while (1)
+  // {
+  //   int fd = open(userName, O_RDONLY);
+  //   read(fd, &messageReceived, sizeof(messageReceived));
+  //   close(fd);
+  //   printf("%s\n", messageReceived);
+  //   printf("%s write your message here:\n", command->args[1]);
+  //   /* code */
+  // }
 
   printf("Chatroom name: %s\n", command->args[0]);
   printf("User: %s\n", command->args[1]);
@@ -781,6 +999,8 @@ void chatroom(struct command_t *command)
 
   DIR *chatroomPtr;
   DIR *userPtr;
+  DIR *userPtr2;
+  DIR *userPtr3;
   struct dirent *entry;
 
   char users[50][50];
@@ -863,38 +1083,271 @@ void chatroom(struct command_t *command)
   pid_t pids[numberOfUser];
   char messageSent[450];
   char messageReceived[450];
-  // strcpy(messageSent, "hello");
+  strcpy(messageSent, "");
 
+  // int i = 0; //users[i] -> current user
+
+  // userPtr2 = opendir(chatroomName);
+
+  //   if (userPtr2 == NULL)
+  //   {
+  //      printf("userPtr2 failed\n");
+  //   }
+  //   else
+  //   {
+  //     while ((entry = readdir(userPtr2)) != NULL)
+  //     {
+  //       printf("entry name in iteration %d %s\n", i, entry->d_name);
   for (int i = 0; i < numberOfUser; i++)
   {
+
     // printf("users[%d] : %s\n", i, users[i]);
     pid_t pid = fork();
     if (pid == 0) // child
     {
-      strcpy(messageSent, "[");
-      strcat(messageSent, command->args[0]);
-      strcat(messageSent, "] ");
-      strcat(messageSent, users[i]);
+      char *last = strrchr(users[i], '/');
+      if (last != NULL)
+      {
+        // printf("Last token: '%s'\n", last + 1);
+      }
 
-      int fd = open(users[i], O_WRONLY);
-      write(fd, &messageSent, sizeof(messageSent));
-      close(fd);
+      // printf("Last token: '%s'\n", last + 1);
+      // printf("users[i]: '%s'\n", users[i]);
+      // printf("command arg: '%s'\n", command->args[1]);
+
+      if (strcmp(last + 1, command->args[1]) != 0)
+      {
+        strcat(messageSent, "[");
+        strcat(messageSent, command->args[0]);
+        strcat(messageSent, "] ");
+        strcat(messageSent, command->args[1]);
+        strcat(messageSent, ": ");
+        strcat(messageSent, command->args[1]);
+        strcat(messageSent, " joined!");
+        int fd = open(users[i], O_RDWR);
+        write(fd, &messageSent, sizeof(messageSent));
+        close(fd);
+      }
 
       kill(getpid(), SIGTERM);
     }
     else
     {
     }
+    // i++;
+    // }
+    // closedir(userPtr2);
   }
 
   printf("Welcome to %s!\n", command->args[0]);
   while (1)
   {
-    int fd = open(userName, O_RDONLY);
+    int fd = open(userName, O_RDWR);
     read(fd, &messageReceived, sizeof(messageReceived));
     close(fd);
     printf("%s\n", messageReceived);
+    // fflush(stdout);
     printf("%s write your message here:\n", command->args[1]);
+    char messageToSent[450];
+    // printf("nameofuser: %s, numberofUser: %d", userName, numberOfUser);
+    fgets(messageToSent, 450, stdin);
+    // puts(messageToSent);
+    // sendMessage(messageToSent,users,numberOfUser);
     /* code */
+
+    // int k = 0;
+
+    // userPtr3 = opendir(chatroomName);
+
+    //   if (userPtr3 == NULL)
+    //   {
+    //     printf("userPtr3 failed\n");
+    //   }
+    //   else
+    //   {
+    //     while ((entry = readdir(userPtr3)) != NULL)
+    //     {
+
+    for (int i = 0; i < numberOfUser; i++)
+    {
+      // printf("users[%d] : %s\n", i, users[i]);
+      pid_t pid = fork();
+      if (pid == 0) // child
+      {
+        char *last = strrchr(users[i], '/');
+        if (last != NULL)
+        {
+          // printf("Last token: '%s'\n", last + 1);
+        }
+
+        // printf("Last token: '%s'\n", last + 1);
+        // printf("users[i]: '%s'\n", users[i]);
+        // printf("command arg: '%s'\n", command->args[1]);
+
+        // if (strcmp(last+1,command->args[1]) != 0)
+        // {
+        // printf("%d\n",numberOfUser);
+        // printf("Users[i]: %s\n",users[i]);
+        strcat(messageSent, "[");
+        strcat(messageSent, command->args[0]);
+        strcat(messageSent, "] ");
+        strcat(messageSent, command->args[1]);
+        strcat(messageSent, ": ");
+        strcat(messageSent, messageToSent);
+        int fd = open(users[i], O_RDWR);
+        write(fd, &messageSent, sizeof(messageSent));
+        close(fd);
+        // }
+
+        kill(getpid(), SIGTERM);
+      }
+      else
+      {
+      }
+      // k++;
+      // }
+      // closedir(userPtr3);
+    }
   }
+}
+
+// void sendMessage(char *inputMessage, char users[50][50],int numUser)
+// {
+//   printf("Message %s\n",inputMessage);
+
+//   for (int i = 0; i < numUser; i++)
+//   {
+//     // printf("users[%d] : %s\n", i, users[i]);
+//     pid_t pid = fork();
+//     if (pid == 0) // child
+//     {
+//       printf("Users[i]: %s\n",users[i]);
+//       int fd = open(users[i], O_WRONLY);
+//       write(fd, &inputMessage, sizeof(inputMessage));
+//       close(fd);
+//       kill(getpid(), SIGTERM);
+//     }
+//     else
+//     {
+//     }
+//   }
+// }
+
+void guessGame(int guess, int goal, int lower, int higher, int *shot)
+{
+
+  if (guess > higher || guess < lower)
+  {
+    printf("Invalid input \n");
+    exit(0);
+  }
+
+  if (guess == goal)
+  {
+    printf("Welldone you found the goal in %d shots\n",*shot);
+    exit(0);
+  }
+
+  if (guess < goal)
+  {
+
+    int newguess;
+    printf("Too low please make a guess between %d-%d : ", guess, higher);
+    (*shot)++;
+    scanf("%d", &newguess);
+    guessGame(newguess, goal, guess, higher,shot);
+  }
+  else if (guess > goal)
+  {
+    int newguess2;
+    printf("Too high please make a guess between %d-%d : ", lower, guess);
+    (*shot)++;
+    scanf("%d", &newguess2);
+    guessGame(newguess2, goal, lower, guess, shot);
+  }
+}
+
+void wordle(char word[], int *chance)
+{
+  int correctness = 0;
+
+  char guess[7];
+
+  // get the guess from the user
+  printf("Enter a guess: ");
+  fgets(guess, 7, stdin);
+  strcspn(guess, "\n\r");
+
+  // compare each char of the guess string and the wordle string
+  for (int i = 0; i < 5; i++)
+  {
+    if (guess[i] == word[i])
+    {
+      correctness++; // increment each time a char is right
+      green();
+      printf("%c", guess[i]);
+      reset();
+    }
+    else
+    {
+      red();
+      printf("%c", guess[i]);
+      reset();
+    }
+  }
+  printf("\n"); // after printing and coloring the guess string
+  (*chance)--;
+
+  if (correctness == 5 && (*chance) >= 0)
+  {
+    blue();
+    printf("Correct!\n");
+    reset();
+  }
+  else if (correctness > 2 && (*chance) > 0)
+  {
+    blue();
+    printf("%d chances left. So close, try again.\n", *chance);
+    reset();
+    wordle(word, chance);
+  }
+  else if ((*chance) > 0)
+  {
+    blue();
+    printf("%d chances left. Try again.\n", *chance);
+    reset();
+    wordle(word, chance);
+  }
+  else if ((*chance) == 0)
+  {
+    blue();
+    // strcspn(word, "\n");
+    printf("Sorry:(( The word you were looking for : %s", word);
+    reset();
+  }
+}
+
+void red()
+{
+  printf("\033[1;31m");
+}
+
+void purple()
+{
+  printf("\033[1;35m");
+}
+
+void green()
+{
+  printf("\033[1;32m");
+}
+
+void reset()
+{
+  printf("\033[0m");
+}
+
+void blue()
+{
+  printf("\33[0;34m");
 }
