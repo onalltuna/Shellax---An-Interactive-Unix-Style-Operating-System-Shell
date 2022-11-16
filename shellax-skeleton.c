@@ -329,6 +329,7 @@ void sendMessage(char *inputMessage, char users[50][50], int numUsers);
 void guessGame(int guess, int goal, int lower, int higher, int *shot);
 void wordGame(char word[], int *chance);
 // helper functions to color texts in word game:
+void printGameInfo();
 void red();
 void purple();
 void green();
@@ -430,27 +431,7 @@ int process_command(struct command_t *command)
             fclose(textfile);
 
             // prints the necessary information to play the game
-            purple();
-            printf("Guess a 5 letter word. Do not use capital letters.");
-            reset();
-            green();
-            printf("\nGreen letters: ");
-            reset();
-            printf("the letter is in the right place. ");
-            reset();
-            red();
-            printf("\nRed letters: ");
-            reset();
-            printf("the word does not include those letters. ");
-            reset();
-            yellow();
-            printf("\nYellow letters: ");
-            reset();
-            printf("the word includes those letters but in a different location.\n");
-            reset();
-            purple();
-            printf("Good Luck!\n");
-            reset();
+            printGameInfo();
 
             // call the game with the selected word and the number of chances
             wordGame(word, &chance);
@@ -547,7 +528,7 @@ int process_command(struct command_t *command)
                     }
                     if (command->redirects[1] != NULL || command->redirects[2] != NULL) //---------Check if redirects
                     {
-                        dup2(connection[1], STDOUT_FILENO);
+                        dup2(connection[1], STDOUT_FILENO); // creates the copy of connection[1]
                     }
                 }
             }
@@ -562,10 +543,10 @@ int process_command(struct command_t *command)
         {
             wait(0); // wait for child process to finish, if the command is not running on the background
         }
-        if (command->redirects[0] != NULL)
-        { //-------------------------------- Redirects
+        if (command->redirects[0] != NULL) // includes <
+        {                                  //-------------------------------- Redirects
             FILE *inputFile;
-            inputFile = fopen(command->redirects[0], "r");
+            inputFile = fopen(command->redirects[0], "r"); // open the input file to read
             fseek(inputFile, 0, SEEK_END);
             int lenght = ftell(inputFile);
             fseek(inputFile, 0, SEEK_SET);
@@ -584,23 +565,23 @@ int process_command(struct command_t *command)
                 i++;
             }
             message2[i] = '\0';
-            if (command->redirects[1] != NULL)
+            if (command->redirects[1] != NULL) // includes >
             {
-                close(connection[1]);
-                read(connection[0], &message, sizeof(message));
+                close(connection[1]);                           // close the unused end of the file
+                read(connection[0], &message, sizeof(message)); // read the input from the pipe
                 FILE *ptr;
-                ptr = fopen(command->redirects[1], "w");
+                ptr = fopen(command->redirects[1], "w"); // open the given file to write
                 printf("%s\n", command->redirects[1]);
                 fprintf(ptr, "%s%s", message, message2);
                 fclose(ptr);
                 close(connection[1]);
             }
-            if (command->redirects[2] != NULL)
+            if (command->redirects[2] != NULL) // includes >>
             {
-                close(connection[1]);
-                read(connection[0], &message, sizeof(message));
+                close(connection[1]);                           // close the unused end of the file
+                read(connection[0], &message, sizeof(message)); // read the input from the pipe
                 FILE *ptr;
-                ptr = fopen(command->redirects[2], "a");
+                ptr = fopen(command->redirects[2], "a"); // option "a" appends to the end of the file
                 printf("%s\n", command->redirects[2]);
                 fputs(message, ptr);
                 fprintf(ptr, "%s", message2);
@@ -608,25 +589,25 @@ int process_command(struct command_t *command)
                 close(connection[1]);
             }
         }
-        else
+        else // no < operation
         {
-            if (command->redirects[1] != NULL)
+            if (command->redirects[1] != NULL) // operation: >
             {
-                close(connection[1]);
-                read(connection[0], &message, sizeof(message));
+                close(connection[1]);                           // close the unused end of the pipe
+                read(connection[0], &message, sizeof(message)); // read the input from the pipe
                 FILE *ptr;
-                ptr = fopen(command->redirects[1], "w");
+                ptr = fopen(command->redirects[1], "w"); // open to file to write
                 printf("%s\n", command->redirects[1]);
                 fprintf(ptr, "%s", message);
                 fclose(ptr);
                 close(connection[1]);
             }
-            if (command->redirects[2] != NULL)
+            if (command->redirects[2] != NULL) // operation: >>
             {
-                close(connection[1]);
-                read(connection[0], &message, sizeof(message));
+                close(connection[1]);                           // close the unused end of the pipe
+                read(connection[0], &message, sizeof(message)); // read the input from the pipe
                 FILE *ptr;
-                ptr = fopen(command->redirects[2], "a");
+                ptr = fopen(command->redirects[2], "a"); // option "a" appends to the end of the file
                 printf("%s\n", command->redirects[2]);
                 fputs(message, ptr);
                 fclose(ptr);
@@ -659,28 +640,29 @@ int pipeCommand(struct command_t *command, int *p)
             ourUniq(word);
         }
     }
+
     if (command->next == NULL) // base case for piping
     {
         close(0);
-        dup(p[0]);
+        dup(p[0]); // pass the output to the next command as an input
         close(p[1]);
-        runCommand(command);
+        runCommand(command); // no more pipe, run the last commnand on the output of previous commands
     }
     else
     {
         if (fork() == 0)
         {
             close(0);
-            dup(p[0]);
+            dup(p[0]); // pass the output to the next command as an input
             close(p[1]);
-            pipeCommand(command->next, p);
+            pipeCommand(command->next, p); // recursive call to handle the next pipe
         }
         else
         {
             close(1);
-            dup(p[1]);
+            dup(p[1]); // write to pipe - passing the input
             close(p[0]);
-            runCommand(command);
+            runCommand(command); // run command with the input
         }
     }
     return 0;
@@ -823,9 +805,9 @@ int wiseman(struct command_t *command, char *minutes)
     strcat(str, minutes);
     strcat(str, " * * * * /tmp/com.sh' | crontab -");
     // system("echo 'echo | fortune | cowsay >>/tmp/wisecow.txt' >/tmp/com.sh"); //does not work for some reason
-    // instead it writes "Wiseman is working" to /tmp/wisecow.txt periodically
+    //  instead it writes "Wiseman is working" to /tmp/wisecow.txt periodically
     system("echo 'echo 'Wiseman is working' >>/tmp/wisecow.txt' >/tmp/com.sh");
-    system("chmod u+x /tmp/com.sh"); // make the com.sh executable for the user
+    system("chmod a+x /tmp/com.sh"); // make the com.sh executable
     system(str);                     // schedule the cron job
     return SUCCESS;
 }
@@ -1101,6 +1083,31 @@ void wordGame(char word[], int *chance) // takes the word to be guessed in the g
     }
 }
 
+// helper function for the wordGame
+void printGameInfo()
+{
+    purple();
+    printf("Guess a 5 letter word. Do not use capital letters.");
+    reset();
+    green();
+    printf("\nGreen letters: ");
+    reset();
+    printf("the letter is in the right place. ");
+    reset();
+    red();
+    printf("\nRed letters: ");
+    reset();
+    printf("the word does not include those letters. ");
+    reset();
+    yellow();
+    printf("\nYellow letters: ");
+    reset();
+    printf("the word includes those letters but in a different location.\n");
+    reset();
+    purple();
+    printf("Good Luck!\n");
+    reset();
+}
 // functions below this line are used to color the texts in the wordGame:
 void red()
 {
